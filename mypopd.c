@@ -11,15 +11,18 @@
 #define POSITIVE "+OK"
 #define NEGATIVE "-ERR"
 
-#define USER "USER\n"
-#define PASS "PASS\n"
-#define STAT "STAT\n"
-#define LIST "LIST\n"
-#define RETR "RETR\n"
-#define DELE "DELE\n"
-#define RSET "RSET\n"
-#define NOOP "NOOP\n"
-#define QUIT "QUIT\n"
+#define USER "USER"
+#define PASS "PASS"
+#define STAT "STAT"
+#define LIST "LIST"
+#define RETR "RETR"
+#define DELE "DELE"
+#define RSET "RSET"
+#define NOOP "NOOP"
+#define QUIT "QUIT"
+
+#define CRLF "\r\n"
+#define SP " "
 
 static void handle_client(int fd);
 
@@ -87,7 +90,7 @@ char* get_argument(char* command) {
   char* newToken = malloc(strlen(token));
   
   strcpy(newToken, token);
-  newToken[strlen(newToken) - 1] = '\0';
+  // newToken[strlen(newToken) - 1] = '\0';
   
   return newToken;
 }
@@ -131,7 +134,10 @@ void handle_client(int fd) {
     }
 
     command = recvbuf;
-    send_formatted(fd, "%s", command);
+    if (strlen(command) >= 4) {
+      command = strtok(command, CRLF);
+    }
+
     // if (!is_command_supported(command)) {
     //   send_ERR(fd);
     //   exit(1);
@@ -141,7 +147,6 @@ void handle_client(int fd) {
 
       if (auth_state == 1) {
         user_name = get_argument(command);
-  
         if (user_name == NULL) {
           send_ERR(fd);
           exit(1);

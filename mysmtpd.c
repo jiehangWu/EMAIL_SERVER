@@ -66,11 +66,11 @@ int is_command_supported(char* command) {
 
 void send_ready_message(int fd, net_buffer_t nb, struct utsname my_uname) {
   // welcome message
-  send_formatted(fd, "%s %s Simple Mail Transfer Service Ready \r\n", SERVER_READY, my_uname.nodename);
+  send_formatted(fd, "%s %s Simple Mail Transfer Service Ready\r\n", SERVER_READY, my_uname.nodename);
 }
 
 void handle_HELO(int fd, net_buffer_t nb, struct utsname my_uname) {
-  send_formatted(fd, "%s %s \r\n", OK, my_uname.nodename);
+  send_formatted(fd, "%s %s\r\n", OK, my_uname.nodename);
 }
 
 char* get_client(char* command) {
@@ -83,11 +83,11 @@ char* get_client(char* command) {
 }
 
 void send_OK(int fd) {
-  send_formatted(fd, "%s OK \r\n", OK);  
+  send_formatted(fd, "%s OK\r\n", OK);  
 }
 
 void send_BAD_SEQUENCE(int fd) {
-  send_formatted(fd, "%s BAD_SEQUENCE \r\n", BAD_SEQUENCE);  
+  send_formatted(fd, "%s BAD_SEQUENCE\r\n", BAD_SEQUENCE);  
 }
 
 void handle_client(int fd) {
@@ -110,7 +110,7 @@ void handle_client(int fd) {
     char* command;
     int result = nb_read_line(nb, recvbuf);
 
-    if (result == 0 || result == -1) {
+    if (result == -1) {
       exit(1);
     }
 
@@ -120,7 +120,7 @@ void handle_client(int fd) {
     }
 
     // if (!is_command_supported(command)) {
-    //   send_formatted(fd, "%s \r\n", UNSUPPORTED);
+    //   send_formatted(fd, "%s\r\n", UNSUPPORTED);
     //   exit(1);
     // }  
     if (is_prefix(HELO, command) == 0 || is_prefix(EHLO, command) == 0) {
@@ -163,7 +163,7 @@ void handle_client(int fd) {
         exit(1);
       }
 
-      send_formatted(fd, "%s Start mail input; end with . \r\n", DATA_START);
+      send_formatted(fd, "%s Start mail input; end with .\r\n", DATA_START);
       result = nb_read_line(nb, recvbuf);
       
       char text_buffer[MAX_LINE_LENGTH + 1][MAX_LINE_LENGTH + 1];
@@ -215,22 +215,22 @@ void handle_client(int fd) {
       domain[strlen(domain) - 1] = '\0';
   
       if (is_valid_user(domain, NULL)) {
-        send_formatted(fd, "%s \r\n", domain);
+        send_formatted(fd, "%s\r\n", domain);
         send_OK(fd);
       } else {
-        send_formatted(fd, "%s User ambiguous \r\n", USER_AMBIGUOUS);
+        send_formatted(fd, "%s User ambiguous\r\n", USER_AMBIGUOUS);
       }
 
     } else if (strcasecmp(command, QUIT) == 0) {
       
-      send_formatted(fd, "%s %s Service closing transmission channel \r\n", QUIT_CODE, my_uname.nodename);
+      send_formatted(fd, "%s %s Service closing transmission channel\r\n", QUIT_CODE, my_uname.nodename);
       exit(1);
 
     } else if (is_prefix(NOOP, command) == 0) {
       send_OK(fd);
 
     } else {
-      send_formatted(fd, "%s \r\n", INVALID);
+      send_formatted(fd, "%s\r\n", INVALID);
     }
   }
   
