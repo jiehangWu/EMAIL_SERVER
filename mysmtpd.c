@@ -66,19 +66,11 @@ int is_command_supported(char* command) {
 
 void send_ready_message(int fd, net_buffer_t nb, struct utsname my_uname) {
   // welcome message
-  int result = send_formatted(fd, "%s %s Simple Mail Transfer Service Ready \r\n", SERVER_READY, my_uname.nodename);
-
-  if (result == -1) {
-    exit(1);
-  }
+  send_formatted(fd, "%s %s Simple Mail Transfer Service Ready \r\n", SERVER_READY, my_uname.nodename);
 }
 
 void handle_HELO(int fd, net_buffer_t nb, struct utsname my_uname) {
-  int result = send_formatted(fd, "%s %s \r\n", OK, my_uname.nodename);
-
-  if (result == -1) {
-    exit(1);
-  }
+  send_formatted(fd, "%s %s \r\n", OK, my_uname.nodename);
 }
 
 char* get_client(char* command) {
@@ -118,20 +110,21 @@ void handle_client(int fd) {
     char* command;
     int result = nb_read_line(nb, recvbuf);
 
-    if (result == -1) {
+    if (result == 0 || result == -1) {
       exit(1);
     }
 
     command = recvbuf;
-    command = strtok(command, CRLF);
+    if (strlen(command) >= 4) {
+      command = strtok(command, CRLF);
+    }
 
     // if (!is_command_supported(command)) {
     //   send_formatted(fd, "%s \r\n", UNSUPPORTED);
     //   exit(1);
-    // }
-  
-    if (strcasecmp(command, HELO) == 0 || strcasecmp(command, EHLO) == 0) {
-      
+    // }  
+    if (is_prefix(HELO, command) == 0 || is_prefix(EHLO, command) == 0) {
+    
       handle_HELO(fd, nb, my_uname);
       session_state = 1;
 

@@ -131,7 +131,7 @@ void handle_client(int fd) {
     }
 
     command = recvbuf;
-
+    send_formatted(fd, "%s", command);
     // if (!is_command_supported(command)) {
     //   send_ERR(fd);
     //   exit(1);
