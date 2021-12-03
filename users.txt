@@ -1,0 +1,4 @@
+john.doe@example.com password123
+mary.smith@example.com mypasswordisstrongerthanyours
+edward.snowden@example.com ThisIsA100%SecureAndMemorablePassword
+123 456
