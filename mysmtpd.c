@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
 }
 
 int is_prefix(char* prefix, char* s) {
-  return strncasecmp(prefix, s, strlen(prefix) - 1);
+  return strncasecmp(prefix, s, strlen(prefix));
 }
 
 int is_command_supported(char* command) {
@@ -110,8 +110,10 @@ void handle_client(int fd) {
     char* command;
     int result = nb_read_line(nb, recvbuf);
 
-    if (result == -1) {
-      exit(1);
+    if (result <= 0) {
+      nb_destroy(nb);
+      destroy_user_list(user_list);
+      return;
     }
 
     command = recvbuf;
@@ -121,7 +123,7 @@ void handle_client(int fd) {
 
     // if (!is_command_supported(command)) {
     //   send_formatted(fd, "%s\r\n", UNSUPPORTED);
-    //   exit(1);
+    //   break;
     // }  
     if (is_prefix(HELO, command) == 0 || is_prefix(EHLO, command) == 0) {
     
@@ -136,14 +138,12 @@ void handle_client(int fd) {
         send_OK(fd); 
       } else {
         send_BAD_SEQUENCE(fd);
-        exit(1);
       }
         
     } else if (is_prefix(RCPT, command) == 0) {
 
       if (transaction_state != 1 || session_state == 0) {
         send_BAD_SEQUENCE(fd);
-        exit(1);
       }
 
       char* recipient = get_client(command);
@@ -160,7 +160,6 @@ void handle_client(int fd) {
 
       if (session_state == 0 || transaction_state != 2) {
         send_BAD_SEQUENCE(fd);
-        exit(1);
       }
 
       send_formatted(fd, "%s Start mail input; end with .\r\n", DATA_START);
@@ -224,7 +223,7 @@ void handle_client(int fd) {
     } else if (strcasecmp(command, QUIT) == 0) {
       
       send_formatted(fd, "%s %s Service closing transmission channel\r\n", QUIT_CODE, my_uname.nodename);
-      exit(1);
+      break;
 
     } else if (is_prefix(NOOP, command) == 0) {
       send_OK(fd);
@@ -235,6 +234,7 @@ void handle_client(int fd) {
   }
   
   nb_destroy(nb);
+  return;
 }
 
 

@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
 }
 
 int is_prefix(char* prefix, char* s) {
-  return strncasecmp(prefix, s, strlen(prefix) - 1) == 0;
+  return strncasecmp(prefix, s, strlen(prefix)) == 0;
 }
 
 int compare(char* s1, char* s2) {
@@ -61,11 +61,11 @@ int is_command_supported(char* command) {
 }
 
 void send_OK(int fd) {
-  send_formatted(fd, "%s \r\n", POSITIVE);
+  send_formatted(fd, "%s %s \r\n", POSITIVE, "Good");
 }
 
 void send_ERR(int fd) {
-  send_formatted(fd, "%s \r\n", NEGATIVE);
+  send_formatted(fd, "%s %s \r\n", NEGATIVE, "Bad");
 }
 
 void send_ready_message(int fd) {
@@ -75,7 +75,6 @@ void send_ready_message(int fd) {
 void check_transactions_state(int fd, int transaction_state) {
   if (transaction_state != 1) {
     send_ERR(fd);
-    exit(1);
   }
 }
 
@@ -129,8 +128,9 @@ void handle_client(int fd) {
     char* command;
     int result = nb_read_line(nb, recvbuf);
 
-    if (result == 0 || result == -1) {
-      exit(1);
+    if (result <= 0) {
+      nb_destroy(nb);
+      return;
     }
 
     command = recvbuf;
@@ -140,7 +140,7 @@ void handle_client(int fd) {
 
     // if (!is_command_supported(command)) {
     //   send_ERR(fd);
-    //   exit(1);
+  
     // }
 
     if (is_prefix(USER, command)) {
@@ -149,7 +149,6 @@ void handle_client(int fd) {
         user_name = get_argument(command);
         if (user_name == NULL) {
           send_ERR(fd);
-          exit(1);
         }
 
         // check if user exists
@@ -158,11 +157,9 @@ void handle_client(int fd) {
           auth_state = 2;
         } else {
           send_ERR(fd);
-          exit(1);
         }
       } else {
         send_ERR(fd);
-        exit(1);
       }
 
     } else if (is_prefix(PASS, command)) {
@@ -172,7 +169,6 @@ void handle_client(int fd) {
 
         if (password == NULL) {
           send_ERR(fd);
-          exit(1);
         }
 
         if (is_valid_user(user_name, password)) {
@@ -182,11 +178,10 @@ void handle_client(int fd) {
           send_OK(fd);
         } else {
           send_ERR(fd);
-          exit(1);
+
         }
       } else {
         send_ERR(fd);
-        exit(1);
       }
 
     } else if (compare(STAT, command)) {
@@ -217,7 +212,6 @@ void handle_client(int fd) {
 
         if (mail_item == NULL) {
           send_ERR(fd);
-          exit(1);
         }
 
         int mail_size = get_mail_item_size(mail_item);
@@ -231,7 +225,6 @@ void handle_client(int fd) {
 
       if (positionStr == NULL) {
         send_ERR(fd);
-        exit(1);
       }
 
       int position = atoi(positionStr);
@@ -240,7 +233,6 @@ void handle_client(int fd) {
 
       if (mail_item == NULL) {
         send_ERR(fd);
-        exit(1);
       }
 
       int size = get_mail_item_size(mail_item);
@@ -262,7 +254,6 @@ void handle_client(int fd) {
 
       if (positionStr == NULL) {
         send_ERR(fd);
-        exit(1);
       }
 
       int position = atoi(positionStr);
@@ -271,7 +262,6 @@ void handle_client(int fd) {
 
       if (mail_item == NULL) {
         send_ERR(fd);
-        exit(1);
       }
 
       mark_mail_item_deleted(mail_item);
@@ -291,7 +281,6 @@ void handle_client(int fd) {
 
     } else if (compare(QUIT, command)) {
       send_OK(fd);
-      exit(1);
     }
   }
     
