@@ -29,6 +29,7 @@
 #define BAD_SEQUENCE "503"
 #define USER_AMBIGUOUS "553"
 #define INVALID_ARG "501"
+#define USER_NOT_LOCAL "551"
 
 #define CRLF "\r\n"
 #define SP " "
@@ -74,7 +75,7 @@ void handle_HELO(int fd, net_buffer_t nb, struct utsname my_uname) {
   send_formatted(fd, "%s %s\r\n", OK, my_uname.nodename);
 }
 
-char* get_client(int fd, char* command) {
+char* get_client(int fd, char* command, int for_mail) {
   if (strchr(command, ' ') == NULL) {
     return NULL;
   }
@@ -82,18 +83,38 @@ char* get_client(int fd, char* command) {
   char* token = strtok(command, " ");
   token = strtok(NULL, " ");
 
-  if (strchr(token, ':') == NULL) {
+  if (token == NULL || strchr(token, ':') == NULL) {
     return NULL;
   }
+
+  if (for_mail == 1) {
+    if (is_prefix("FROM", token) != 0) {
+      return NULL;
+    }
+  } else {
+    if (is_prefix("TO", token) != 0) {
+      return NULL;
+    }
+  }
+  
   
   token = strtok(token, ":");
   token = strtok(NULL, ":");
 
-  if (strchr(token, '<') == NULL || strchr(token, '>') == NULL) {
+  if (strchr(token, '<') == NULL) {
     return NULL;
   }
 
   token = strtok(token, "<");
+
+  if (strchr(token, '@') == NULL) {
+    return NULL;
+  }
+
+  if (token[strlen(token) - 1] != '>') {
+    return NULL;
+  }
+
   token[strlen(token) - 1] = '\0';
   return token;
 }
@@ -149,7 +170,7 @@ void handle_client(int fd) {
     } else if (is_prefix(MAIL, command) == 0) {
 
       if (session_state == 1) {
-        sender = get_client(fd, command);
+        sender = get_client(fd, command, 1);
         
         if (sender == NULL || strlen(sender) == 0) {
           send_formatted(fd, "%s Invalid argument\r\n", INVALID_ARG);
@@ -164,24 +185,23 @@ void handle_client(int fd) {
         
     } else if (is_prefix(RCPT, command) == 0) {
 
-      if (transaction_state != 1 || session_state == 0) {
+      if (transaction_state != 1 || session_state == 0 ) {
         send_BAD_SEQUENCE(fd);
-      }
-
-      char* recipient = get_client(fd, command);
-      if (recipient == NULL) {
-        send_formatted(fd, "%s Invalid argument\r\n", INVALID_ARG);
       } else {
-        recipient[strlen(recipient) - 1] = '\0';
-      
-        if (is_valid_user(recipient, NULL)) {
-          add_user_to_list(&user_list, recipient);
+        char* recipient = get_client(fd, command, 0);
+        if (recipient == NULL) {
+          send_formatted(fd, "%s Invalid argument\r\n", INVALID_ARG);
+        } else {
+          if (is_valid_user(recipient, NULL)) {
+            add_user_to_list(&user_list, recipient);
+            transaction_state = 2;
+            send_OK(fd);  
+          } else {
+            send_formatted(fd, "%s User not local\r\n", USER_NOT_LOCAL);
+          }
         }
 
-        transaction_state = 2;
-        send_OK(fd);  
-      }
-          
+      }        
     } else if (strcasecmp(command, DATA) == 0) {
 
       if (session_state == 0 || transaction_state != 2) {
@@ -197,15 +217,13 @@ void handle_client(int fd) {
       char* line;
       line = recvbuf;
 
-      while (idx <= MAX_LINE_LENGTH && result != 0 && result != -1 && strcmp(line, ".\n") != 0) {  
+      while (idx <= MAX_LINE_LENGTH && result > 0 && strcmp(line, ".\r\n") != 0) {  
         strcpy(text_buffer[idx], recvbuf);
 
         result = nb_read_line(nb, recvbuf);
         line = recvbuf;
         idx += 1;
       }
-
-      // strcpy(text_buffer[idx], ".");
 
       char template[] = "tmpXXXXXX";
       int f = mkstemp(template);
