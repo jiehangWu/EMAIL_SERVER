@@ -206,7 +206,7 @@ void handle_client(int fd) {
           
           list_mail_items(fd, mail_list);
         } else {
-          int position = atoi(positionStr);
+          int position = atoi(positionStr) - 1;
 
           mail_item_t mail_item = get_mail_item(mail_list, position);
 
@@ -228,7 +228,7 @@ void handle_client(int fd) {
           send_ERR(fd);
         }
 
-        int position = atoi(positionStr);
+        int position = atoi(positionStr) - 1;
 
         mail_item_t mail_item = get_mail_item(mail_list, position);
 
@@ -241,16 +241,14 @@ void handle_client(int fd) {
 
           FILE* file = get_mail_item_contents(mail_item);
           char line[MAX_LINE_LENGTH + 1];
-          char* termination = "\r\n.\r\n";
+          char* termination = ".";
 
           while (fgets(line, sizeof(line), file)) {
-            send_formatted(fd, "%s\r\n", line);
-            if (is_prefix(termination, line)) {
+            send_formatted(fd, "%s", line);
+            if (compare(termination, line)) {
               break;
             }
           }
-          // send_formatted(fd, " \r\n");
-          // send_formatted(fd, ". \r\n");
         }
       }
 
@@ -263,7 +261,7 @@ void handle_client(int fd) {
           send_ERR(fd);
         }
 
-        int position = atoi(positionStr);
+        int position = atoi(positionStr) - 1;
 
         mail_item_t mail_item = get_mail_item(mail_list, position);
 

@@ -233,7 +233,7 @@ void handle_client(int fd) {
         write(f, text_buffer[i], strlen(text_buffer[i]));
       }
 
-      char* termination = "\r\n.\r\n";
+      char* termination = ".\r\n";
       fputs(termination, tmp);
 
       save_user_mail(template, user_list);
