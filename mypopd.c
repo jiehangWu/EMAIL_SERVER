@@ -100,16 +100,16 @@ char* get_argument(char* command) {
 }
 
 void list_mail_items(int fd, mail_list_t list) {
-  int i = 1;
+  int i = 0;
 
-  mail_item_t item = get_mail_item(list, i - 1);
+  mail_item_t item = get_mail_item(list, i);
 
   while (item != NULL) {
     int size = get_mail_item_size(item);
     send_formatted(fd, "%d %d \r\n", i, size);
 
     i += 1;
-    item = get_mail_item(list, i - 1);
+    item = get_mail_item(list, i);
   }
 }
 
@@ -239,14 +239,15 @@ void handle_client(int fd) {
 
           FILE* file = get_mail_item_contents(mail_item);
           char line[MAX_LINE_LENGTH + 1];
-          char* termination = ".";
 
           while (fgets(line, sizeof(line), file)) {
-            send_formatted(fd, "%s", line);
-            if (compare(termination, line)) {
+            if (strlen(line) == 0) {
               break;
             }
+            send_formatted(fd, "%s\r\n", line);
           }
+
+          send_formatted(fd, ".\r\n");
         }
       }
 
