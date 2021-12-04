@@ -229,9 +229,12 @@ void handle_client(int fd) {
       int f = mkstemp(template);
       FILE* tmp = fdopen(f, "wb");
       
-      for (int i = 0; i <= MAX_LINE_LENGTH; i++) {
+      for (int i = 0; i < MAX_LINE_LENGTH; i++) {
         write(f, text_buffer[i], strlen(text_buffer[i]));
       }
+
+      char* termination = "\r\n.\r\n";
+      fputs(termination, tmp);
 
       save_user_mail(template, user_list);
       unlink(template);
@@ -270,7 +273,7 @@ void handle_client(int fd) {
       break;
 
     } else if (is_prefix(NOOP, command) == 0) {
-      
+
       send_OK(fd);
 
     } else {

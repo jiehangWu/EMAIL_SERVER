@@ -72,10 +72,13 @@ void send_ready_message(int fd) {
   send_formatted(fd, "+OK POP3 server ready \r\n");
 }
 
-void check_transactions_state(int fd, int transaction_state) {
+int check_transactions_state(int fd, int transaction_state) {
   if (transaction_state != 1) {
     send_ERR(fd);
+    return 0;
   }
+
+  return 1;
 }
 
 char* get_argument(char* command) {
@@ -97,16 +100,16 @@ char* get_argument(char* command) {
 }
 
 void list_mail_items(int fd, mail_list_t list) {
-  int i = 0;
+  int i = 1;
 
-  mail_item_t item = get_mail_item(list, i);
+  mail_item_t item = get_mail_item(list, i - 1);
 
   while (item != NULL) {
     int size = get_mail_item_size(item);
     send_formatted(fd, "%d %d \r\n", i, size);
 
     i += 1;
-    item = get_mail_item(list, i);
+    item = get_mail_item(list, i - 1);
   }
 }
 
@@ -183,26 +186,48 @@ void handle_client(int fd) {
 
     } else if (compare(STAT, command)) {
 
-      check_transactions_state(fd, transaction_state);
-
-      int mail_count = get_mail_count(mail_list);
-      int mail_list_size = get_mail_list_size(mail_list);
-
-      send_formatted(fd, "%s %d %d \r\n", POSITIVE, mail_count, mail_list_size);
-
-    } else if (is_prefix(LIST, command)) {
-      
-      check_transactions_state(fd, transaction_state);
-      char* positionStr = get_argument(command);
-
-      if (positionStr == NULL) {
+      if (check_transactions_state(fd, transaction_state)) {
         int mail_count = get_mail_count(mail_list);
         int mail_list_size = get_mail_list_size(mail_list);
 
-        send_formatted(fd, "%s %d messages (%d octets) \r\n", POSITIVE, mail_count, mail_list_size);
-        
-        list_mail_items(fd, mail_list);
-      } else {
+        send_formatted(fd, "%s %d %d \r\n", POSITIVE, mail_count, mail_list_size);
+      }
+
+    } else if (is_prefix(LIST, command)) {
+      
+      if (check_transactions_state(fd, transaction_state)) {
+        char* positionStr = get_argument(command);
+
+        if (positionStr == NULL) {
+          int mail_count = get_mail_count(mail_list);
+          int mail_list_size = get_mail_list_size(mail_list);
+
+          send_formatted(fd, "%s %d messages (%d octets) \r\n", POSITIVE, mail_count, mail_list_size);
+          
+          list_mail_items(fd, mail_list);
+        } else {
+          int position = atoi(positionStr);
+
+          mail_item_t mail_item = get_mail_item(mail_list, position);
+
+          if (mail_item == NULL) {
+            send_ERR(fd);
+          } else {
+            int mail_size = get_mail_item_size(mail_item);
+            send_formatted(fd, "%s %d %d \r\n", POSITIVE, position, mail_size);
+          }
+        }
+      }
+
+    } else if (is_prefix(RETR, command)) {
+
+      if (check_transactions_state(fd, transaction_state)) {
+        char* positionStr = get_argument(command);
+
+        if (positionStr == NULL) {
+          send_ERR(fd);
+        }
+
         int position = atoi(positionStr);
 
         mail_item_t mail_item = get_mail_item(mail_list, position);
@@ -210,58 +235,44 @@ void handle_client(int fd) {
         if (mail_item == NULL) {
           send_ERR(fd);
         } else {
-          int mail_size = get_mail_item_size(mail_item);
-          send_formatted(fd, "%s %d %d \r\n", POSITIVE, position, mail_size);
+          int size = get_mail_item_size(mail_item);
+
+          send_formatted(fd, "%s %d octets \r\n", POSITIVE, size);
+
+          FILE* file = get_mail_item_contents(mail_item);
+          char line[MAX_LINE_LENGTH + 1];
+          char* termination = "\r\n.\r\n";
+
+          while (fgets(line, sizeof(line), file)) {
+            send_formatted(fd, "%s\r\n", line);
+            if (is_prefix(termination, line)) {
+              break;
+            }
+          }
+          // send_formatted(fd, " \r\n");
+          // send_formatted(fd, ". \r\n");
         }
-      }
-
-    } else if (is_prefix(RETR, command)) {
-
-      check_transactions_state(fd, transaction_state);
-      char* positionStr = get_argument(command);
-
-      if (positionStr == NULL) {
-        send_ERR(fd);
-      }
-
-      int position = atoi(positionStr);
-
-      mail_item_t mail_item = get_mail_item(mail_list, position);
-
-      if (mail_item == NULL) {
-        send_ERR(fd);
-      } else {
-        int size = get_mail_item_size(mail_item);
-
-        send_formatted(fd, "%s %d octets \r\n", POSITIVE, size);
-
-        FILE* file = get_mail_item_contents(mail_item);
-        char line[MAX_LINE_LENGTH + 1];
-
-        while (fgets(line, sizeof(line), file)) {
-          send_formatted(fd, "%s \r\n", line);
-        }
-        send_formatted(fd, " \r\n");
-        send_formatted(fd, ". \r\n");
       }
 
     } else if (is_prefix(DELE, command)) {
-      check_transactions_state(fd, transaction_state);
-      char* positionStr = get_argument(command);
 
-      if (positionStr == NULL) {
-        send_ERR(fd);
-      }
+      if (check_transactions_state(fd, transaction_state)) {
+        char* positionStr = get_argument(command);
 
-      int position = atoi(positionStr);
+        if (positionStr == NULL) {
+          send_ERR(fd);
+        }
 
-      mail_item_t mail_item = get_mail_item(mail_list, position);
+        int position = atoi(positionStr);
 
-      if (mail_item == NULL) {
-        send_ERR(fd);
-      } else {
-        mark_mail_item_deleted(mail_item);
-        send_formatted(fd, "%s message %d deleted \r\n", POSITIVE, position);
+        mail_item_t mail_item = get_mail_item(mail_list, position);
+
+        if (mail_item == NULL) {
+          send_ERR(fd);
+        } else {
+          mark_mail_item_deleted(mail_item);
+          send_formatted(fd, "%s message %d deleted \r\n", POSITIVE, position);
+        }
       }
 
     } else if (compare(NOOP, command)) {
@@ -271,11 +282,12 @@ void handle_client(int fd) {
 
     } else if (compare(RSET, command)) {
 
-      check_transactions_state(fd, transaction_state);
-      reset_mail_list_deleted_flag(mail_list);
+      if (check_transactions_state(fd, transaction_state)) {
+        reset_mail_list_deleted_flag(mail_list);
 
-      send_OK(fd);
-
+        send_OK(fd);
+      }
+      
     } else if (compare(QUIT, command)) {
       send_OK(fd);
       break;
