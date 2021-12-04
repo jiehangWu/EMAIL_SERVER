@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "stdlib.h": "c",
-        "wait.h": "c",
-        "locale": "c",
-        "string": "c",
-        "istream": "c"
-    }
-}
