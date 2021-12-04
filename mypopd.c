@@ -79,6 +79,10 @@ void check_transactions_state(int fd, int transaction_state) {
 }
 
 char* get_argument(char* command) {
+  if (strchr(command, ' ') == NULL) {
+    return NULL;
+  }
+
   char* token = strtok(command, " ");
   token = strtok(NULL, " ");
 
@@ -89,8 +93,6 @@ char* get_argument(char* command) {
   char* newToken = malloc(strlen(token));
   
   strcpy(newToken, token);
-  // newToken[strlen(newToken) - 1] = '\0';
-  
   return newToken;
 }
 
@@ -138,25 +140,20 @@ void handle_client(int fd) {
       command = strtok(command, CRLF);
     }
 
-    // if (!is_command_supported(command)) {
-    //   send_ERR(fd);
-  
-    // }
-
     if (is_prefix(USER, command)) {
 
       if (auth_state == 1) {
         user_name = get_argument(command);
         if (user_name == NULL) {
           send_ERR(fd);
-        }
-
-        // check if user exists
-        if (is_valid_user(user_name, NULL)) {
-          send_OK(fd);
-          auth_state = 2;
         } else {
-          send_ERR(fd);
+          // check if user exists
+          if (is_valid_user(user_name, NULL)) {
+            send_OK(fd);
+            auth_state = 2;
+          } else {
+            send_ERR(fd);
+          }
         }
       } else {
         send_ERR(fd);
@@ -169,16 +166,16 @@ void handle_client(int fd) {
 
         if (password == NULL) {
           send_ERR(fd);
-        }
-
-        if (is_valid_user(user_name, password)) {
-          transaction_state = 1;
-
-          mail_list = load_user_mail(user_name);
-          send_OK(fd);
         } else {
-          send_ERR(fd);
+          if (is_valid_user(user_name, password)) {
+            transaction_state = 1;
 
+            mail_list = load_user_mail(user_name);
+            send_OK(fd);
+          } else {
+            send_ERR(fd);
+
+          }
         }
       } else {
         send_ERR(fd);
@@ -212,10 +209,10 @@ void handle_client(int fd) {
 
         if (mail_item == NULL) {
           send_ERR(fd);
+        } else {
+          int mail_size = get_mail_item_size(mail_item);
+          send_formatted(fd, "%s %d %d \r\n", POSITIVE, position, mail_size);
         }
-
-        int mail_size = get_mail_item_size(mail_item);
-        send_formatted(fd, "%s %d %d \r\n", POSITIVE, position, mail_size);
       }
 
     } else if (is_prefix(RETR, command)) {
@@ -233,20 +230,20 @@ void handle_client(int fd) {
 
       if (mail_item == NULL) {
         send_ERR(fd);
+      } else {
+        int size = get_mail_item_size(mail_item);
+
+        send_formatted(fd, "%s %d octets \r\n", POSITIVE, size);
+
+        FILE* file = get_mail_item_contents(mail_item);
+        char line[MAX_LINE_LENGTH + 1];
+
+        while (fgets(line, sizeof(line), file)) {
+          send_formatted(fd, "%s \r\n", line);
+        }
+        send_formatted(fd, " \r\n");
+        send_formatted(fd, ". \r\n");
       }
-
-      int size = get_mail_item_size(mail_item);
-
-      send_formatted(fd, "%s %d octets \r\n", POSITIVE, size);
-
-      FILE* file = get_mail_item_contents(mail_item);
-      char line[MAX_LINE_LENGTH + 1];
-
-      while (fgets(line, sizeof(line), file)) {
-        send_formatted(fd, "%s \r\n", line);
-      }
-      send_formatted(fd, " \r\n");
-      send_formatted(fd, ". \r\n");
 
     } else if (is_prefix(DELE, command)) {
       check_transactions_state(fd, transaction_state);
@@ -262,14 +259,14 @@ void handle_client(int fd) {
 
       if (mail_item == NULL) {
         send_ERR(fd);
+      } else {
+        mark_mail_item_deleted(mail_item);
+        send_formatted(fd, "%s message %d deleted \r\n", POSITIVE, position);
       }
-
-      mark_mail_item_deleted(mail_item);
-      send_formatted(fd, "%s message %d deleted \r\n", POSITIVE, position);
 
     } else if (compare(NOOP, command)) {
 
-      check_transactions_state(fd, transaction_state);
+      // check_transactions_state(fd, transaction_state);
       send_OK(fd);
 
     } else if (compare(RSET, command)) {
@@ -281,6 +278,7 @@ void handle_client(int fd) {
 
     } else if (compare(QUIT, command)) {
       send_OK(fd);
+      break;
     }
   }
     

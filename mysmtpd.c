@@ -27,7 +27,7 @@
 #define UNSUPPORTED "502"
 #define INVALID "500"
 #define BAD_SEQUENCE "503"
-#define USER_AMBIGUOUS "553"
+#define USER_DOES_NOT_EXIST "550"
 #define INVALID_ARG "501"
 #define USER_NOT_LOCAL "551"
 
@@ -250,20 +250,18 @@ void handle_client(int fd) {
       send_OK(fd);
 
     } else if ((is_prefix(VRFY, command) == 0)) {
-      char* token = strtok(command, " ");
 
-      while (token != NULL && strchr(token, '@') == NULL) {
-        token = strtok(NULL, " ");
-      }
-
-      char* domain = token;
-      domain[strlen(domain) - 1] = '\0';
-  
-      if (is_valid_user(domain, NULL)) {
-        send_formatted(fd, "%s\r\n", domain);
-        send_OK(fd);
+      if (strchr(command, ' ') == NULL) {
+        send_formatted(fd, "%s Invalid argument\r\n", INVALID_ARG);
       } else {
-        send_formatted(fd, "%s User ambiguous\r\n", USER_AMBIGUOUS);
+        char* username = strtok(command, " ");
+        username = strtok(NULL, " ");
+
+        if (is_valid_user(username, NULL)) {
+          send_OK(fd);
+        } else {
+          send_formatted(fd, "%s User does not exist\r\n", USER_DOES_NOT_EXIST);
+        }
       }
 
     } else if (strcasecmp(command, QUIT) == 0) {
@@ -272,6 +270,7 @@ void handle_client(int fd) {
       break;
 
     } else if (is_prefix(NOOP, command) == 0) {
+      
       send_OK(fd);
 
     } else {
