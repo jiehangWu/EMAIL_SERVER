@@ -185,7 +185,7 @@ void handle_client(int fd) {
         
     } else if (is_prefix(RCPT, command) == 0) {
 
-      if (transaction_state != 1 || session_state == 0 ) {
+      if ((transaction_state != 1 && transaction_state != 2) || session_state == 0 ) {
         send_BAD_SEQUENCE(fd);
       } else {
         char* recipient = get_client(fd, command, 0);
@@ -228,7 +228,7 @@ void handle_client(int fd) {
       char template[] = "tmpXXXXXX";
       int f = mkstemp(template);
       FILE* tmp = fdopen(f, "wb");
-
+      
       for (int i = 0; i <= MAX_LINE_LENGTH; i++) {
         write(f, text_buffer[i], strlen(text_buffer[i]));
       }
@@ -241,8 +241,10 @@ void handle_client(int fd) {
       send_OK(fd);  
 
     } else if (strcasecmp(command, RSET) == 0) {
+      
       sender = NULL;
       destroy_user_list(user_list);
+      user_list = create_user_list();
       transaction_state = 0;
 
       send_OK(fd);
