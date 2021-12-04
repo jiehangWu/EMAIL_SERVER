@@ -172,12 +172,10 @@ void handle_client(int fd) {
         } else {
           if (is_valid_user(user_name, password)) {
             transaction_state = 1;
-
             mail_list = load_user_mail(user_name);
             send_OK(fd);
           } else {
             send_ERR(fd);
-
           }
         }
       } else {
