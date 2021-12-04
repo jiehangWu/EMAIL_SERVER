@@ -28,6 +28,7 @@
 #define INVALID "500"
 #define BAD_SEQUENCE "503"
 #define USER_AMBIGUOUS "553"
+#define INVALID_ARG "501"
 
 #define CRLF "\r\n"
 #define SP " "
@@ -73,12 +74,27 @@ void handle_HELO(int fd, net_buffer_t nb, struct utsname my_uname) {
   send_formatted(fd, "%s %s\r\n", OK, my_uname.nodename);
 }
 
-char* get_client(char* command) {
+char* get_client(int fd, char* command) {
+  if (strchr(command, ' ') == NULL) {
+    return NULL;
+  }
+
   char* token = strtok(command, " ");
   token = strtok(NULL, " ");
 
+  if (strchr(token, ':') == NULL) {
+    return NULL;
+  }
+  
   token = strtok(token, ":");
   token = strtok(NULL, ":");
+
+  if (strchr(token, '<') == NULL || strchr(token, '>') == NULL) {
+    return NULL;
+  }
+
+  token = strtok(token, "<");
+  token[strlen(token) - 1] = '\0';
   return token;
 }
 
@@ -133,9 +149,15 @@ void handle_client(int fd) {
     } else if (is_prefix(MAIL, command) == 0) {
 
       if (session_state == 1) {
-        sender = get_client(command);
-        transaction_state = 1;
-        send_OK(fd); 
+        sender = get_client(fd, command);
+        
+        if (sender == NULL || strlen(sender) == 0) {
+          send_formatted(fd, "%s Invalid argument\r\n", INVALID_ARG);
+        } else {
+          transaction_state = 1;
+          send_OK(fd); 
+        }
+        
       } else {
         send_BAD_SEQUENCE(fd);
       }
@@ -146,16 +168,20 @@ void handle_client(int fd) {
         send_BAD_SEQUENCE(fd);
       }
 
-      char* recipient = get_client(command);
-      recipient[strlen(recipient) - 1] = '\0';
+      char* recipient = get_client(fd, command);
+      if (recipient == NULL) {
+        send_formatted(fd, "%s Invalid argument\r\n", INVALID_ARG);
+      } else {
+        recipient[strlen(recipient) - 1] = '\0';
       
-      if (is_valid_user(recipient, NULL)) {
-        add_user_to_list(&user_list, recipient);
+        if (is_valid_user(recipient, NULL)) {
+          add_user_to_list(&user_list, recipient);
+        }
+
+        transaction_state = 2;
+        send_OK(fd);  
       }
-
-      transaction_state = 2;
-      send_OK(fd);      
-
+          
     } else if (strcasecmp(command, DATA) == 0) {
 
       if (session_state == 0 || transaction_state != 2) {
