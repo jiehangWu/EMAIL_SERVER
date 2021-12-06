@@ -106,7 +106,7 @@ void list_mail_items(int fd, mail_list_t list) {
 
   while (item != NULL) {
     int size = get_mail_item_size(item);
-    send_formatted(fd, "%d %d \r\n", i, size);
+    send_formatted(fd, "%d %d \r\n", i + 1, size);
 
     i += 1;
     item = get_mail_item(list, i);
@@ -200,7 +200,7 @@ void handle_client(int fd) {
           int mail_count = get_mail_count(mail_list);
           int mail_list_size = get_mail_list_size(mail_list);
 
-          send_formatted(fd, "%s %d messages (%d octets) \r\n", POSITIVE, mail_count, mail_list_size);
+          send_formatted(fd, "+OK %d messages (%d octets) \r\n", mail_count, mail_list_size);
           
           list_mail_items(fd, mail_list);
         } else {
