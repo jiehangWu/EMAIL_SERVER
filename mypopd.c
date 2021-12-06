@@ -61,15 +61,15 @@ int is_command_supported(char* command) {
 }
 
 void send_OK(int fd) {
-  send_formatted(fd, "%s %s \r\n", POSITIVE, "Good");
+  send_formatted(fd, "%s %s\r\n", POSITIVE, "Good");
 }
 
 void send_ERR(int fd) {
-  send_formatted(fd, "%s %s \r\n", NEGATIVE, "Bad");
+  send_formatted(fd, "%s %s\r\n", NEGATIVE, "Bad");
 }
 
 void send_ready_message(int fd) {
-  send_formatted(fd, "+OK POP3 server ready \r\n");
+  send_formatted(fd, "+OK POP3 server ready\r\n");
 }
 
 int check_transactions_state(int fd, int transaction_state) {
@@ -100,16 +100,19 @@ char* get_argument(char* command) {
 }
 
 void list_mail_items(int fd, mail_list_t list) {
+  int mail_count = get_mail_count(list);
+  int count = 0;
   int i = 0;
 
-  mail_item_t item = get_mail_item(list, i);
-
-  while (item != NULL) {
-    int size = get_mail_item_size(item);
-    send_formatted(fd, "%d %d \r\n", i + 1, size);
-
+  while (count < mail_count) {
+    mail_item_t item = get_mail_item(list, i);
+    if (item != NULL) {
+      int size = get_mail_item_size(item);
+      count += 1;
+      send_formatted(fd, "%d %d\r\n", count, size);
+    }
+    
     i += 1;
-    item = get_mail_item(list, i);
   }
 }
 
@@ -188,7 +191,7 @@ void handle_client(int fd) {
         int mail_count = get_mail_count(mail_list);
         int mail_list_size = get_mail_list_size(mail_list);
 
-        send_formatted(fd, "%s %d %d \r\n", POSITIVE, mail_count, mail_list_size);
+        send_formatted(fd, "%s %d %d\r\n", POSITIVE, mail_count, mail_list_size);
       }
 
     } else if (is_prefix(LIST, command)) {
@@ -200,7 +203,7 @@ void handle_client(int fd) {
           int mail_count = get_mail_count(mail_list);
           int mail_list_size = get_mail_list_size(mail_list);
 
-          send_formatted(fd, "+OK %d messages (%d octets) \r\n", mail_count, mail_list_size);
+          send_formatted(fd, "+OK %d messages (%d octets)\r\n", mail_count, mail_list_size);
           
           list_mail_items(fd, mail_list);
         } else {
@@ -212,7 +215,7 @@ void handle_client(int fd) {
             send_ERR(fd);
           } else {
             int mail_size = get_mail_item_size(mail_item);
-            send_formatted(fd, "%s %d %d \r\n", POSITIVE, position, mail_size);
+            send_formatted(fd, "%s %d %d\r\n", POSITIVE, position, mail_size);
           }
         }
       }
@@ -235,7 +238,7 @@ void handle_client(int fd) {
         } else {
           int size = get_mail_item_size(mail_item);
 
-          send_formatted(fd, "%s %d octets \r\n", POSITIVE, size);
+          send_formatted(fd, "%s %d octets\r\n", POSITIVE, size);
 
           FILE* file = get_mail_item_contents(mail_item);
           char line[MAX_LINE_LENGTH + 1];
@@ -268,7 +271,7 @@ void handle_client(int fd) {
           send_ERR(fd);
         } else {
           mark_mail_item_deleted(mail_item);
-          send_formatted(fd, "%s message %d deleted \r\n", POSITIVE, position);
+          send_formatted(fd, "%s message %d deleted\r\n", POSITIVE, position + 1);
         }
       }
 
