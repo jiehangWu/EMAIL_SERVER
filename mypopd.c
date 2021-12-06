@@ -245,14 +245,15 @@ void handle_client(int fd) {
 
           FILE* file = get_mail_item_contents(mail_item);
           char line[MAX_LINE_LENGTH + 1];
+          char buffer[MAX_LINE_LENGTH * (MAX_LINE_LENGTH + 1)];
 
           while (fgets(line, sizeof(line), file)) {
             if (strlen(line) == 0) {
               break;
             }
-            send_formatted(fd, "%s", line);
-          }
-
+            strcat(buffer, line);
+          } 
+          send_formatted(fd, "%s", buffer);
           send_formatted(fd, ".\r\n");
         }
       }
