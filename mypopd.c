@@ -109,11 +109,13 @@ void list_mail_items(int fd, mail_list_t list) {
     if (item != NULL) {
       int size = get_mail_item_size(item);
       count += 1;
-      send_formatted(fd, "%d %d\r\n", count, size);
+      send_formatted(fd, "%d %d\r\n", i + 1, size);
     }
     
     i += 1;
   }
+
+  send_formatted(fd, ".\r\n");
 }
 
 void handle_client(int fd) {
@@ -207,9 +209,9 @@ void handle_client(int fd) {
           
           list_mail_items(fd, mail_list);
         } else {
-          int position = atoi(positionStr) - 1;
+          int position = atoi(positionStr);
 
-          mail_item_t mail_item = get_mail_item(mail_list, position);
+          mail_item_t mail_item = get_mail_item(mail_list, position - 1);
 
           if (mail_item == NULL) {
             send_ERR(fd);
@@ -227,6 +229,7 @@ void handle_client(int fd) {
 
         if (positionStr == NULL) {
           send_ERR(fd);
+          continue;
         }
 
         int position = atoi(positionStr) - 1;
@@ -247,7 +250,7 @@ void handle_client(int fd) {
             if (strlen(line) == 0) {
               break;
             }
-            send_formatted(fd, "%s\r\n", line);
+            send_formatted(fd, "%s", line);
           }
 
           send_formatted(fd, ".\r\n");
@@ -261,6 +264,7 @@ void handle_client(int fd) {
 
         if (positionStr == NULL) {
           send_ERR(fd);
+          continue;
         }
 
         int position = atoi(positionStr) - 1;
@@ -283,9 +287,8 @@ void handle_client(int fd) {
     } else if (compare(RSET, command)) {
 
       if (check_transactions_state(fd, transaction_state)) {
-        reset_mail_list_deleted_flag(mail_list);
-
-        send_OK(fd);
+        int number_of_reset_messages = reset_mail_list_deleted_flag(mail_list);
+        send_formatted(fd, "+OK %d messages recovered\r\n", number_of_reset_messages);
       }
       
     } else if (compare(QUIT, command)) {
